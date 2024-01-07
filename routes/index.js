@@ -14,6 +14,7 @@ const unshort = require('url-unshorten');
 var moment = require('moment');
 var btoa = require('btoa');
 var qs = require('qs');
+var config = require('../config/global');
 
 /* GET home page. */
 router.get('/', function (req, res, next) {
@@ -231,9 +232,8 @@ setInterval(function setup() {
   let sqlsss = "SELECT * FROM app_data";
   connection.query(sqlsss, async function (err, appData) {
     if (err) {
-      await logUser("app data fetch api failed");
+      await logUser("App data fetch api failed");
     } else {
-      // testuser();
       console.log('appData: ', appData[0]);
     }
   })
@@ -258,7 +258,8 @@ router.get('/login', function (req, res) {
       connection.query(sqlsss, async function (err, appData) {
         console.log('appData: ', appData);
         if (err) {
-          await logUser("app data fetch api failed");
+          await teleStockMsg("App data fetch api failed");
+          await logUser("App data fetch api failed");
         } else {
 
           let requestHeaders1 = {
@@ -282,6 +283,7 @@ router.get('/login', function (req, res) {
             headers: requestHeaders1
           }, async (err, response, success) => {
             if (err) {
+              await teleStockMsg("upstox login failed");
               await logUser("upstox login failed");
               return nextCall({
                 "message": "something went wrong",
@@ -295,6 +297,7 @@ router.get('/login', function (req, res) {
               if (finalData.status && finalData.status == "error") {
                 finalData.status1 = "logout";
                 await updateLoginUser(finalData)
+                await teleStockMsg("upstox login failed")
                 await logUser("upstox login failed")
                 return nextCall({
                   "message": "something went wrong",
@@ -333,7 +336,8 @@ router.get('/historical-data', function (req, res) {
       let sqlsss = "SELECT * FROM plateform_login";
       connection.query(sqlsss, async function (err, appData) {
         if (err) {
-          await logUser("app data fetch api failed");
+          await teleStockMsg("App data fetch api failed");
+          await logUser("App data fetch api failed");
         } else {
           let requestHeaders1 = {
             "accept": "application/json",
@@ -348,7 +352,8 @@ router.get('/historical-data', function (req, res) {
             headers: requestHeaders1
           }, async (err, response, success) => {
             if (err) {
-              await logUser("historical candle data featch failed");
+              await teleStockMsg("Historical candle data featch failed");
+              await logUser("Historical candle data featch failed");
               return nextCall({
                 "message": "something went wrong",
                 "data": null
@@ -359,7 +364,8 @@ router.get('/historical-data', function (req, res) {
                 finalData.client_secret = appData[0].client_secret;
                 finalData.status1 = "logout";
                 await updateLoginUser(finalData)
-                await logUser("historical candle data featch failed")
+                await teleStockMsg("Historical candle data featch failed")
+                await logUser("Historical candle data featch failed")
                 return nextCall({
                   "message": "something went wrong",
                   "data": finalData
@@ -383,7 +389,8 @@ router.get('/historical-data', function (req, res) {
                     "candles": convertedCandles
                   }
                 };
-                await logUser("historical candle data featch successfully")
+                await teleStockMsg("Historical candle data featch successfully")
+                await logUser("Historical candle data featch successfully")
                 nextCall(null, desiredFormat);
               }
             }
@@ -407,15 +414,101 @@ router.get('/historical-data', function (req, res) {
   });
 });
 
+/** intraday apis */
+router.get('/intraday', function (req, res) {
+  async.waterfall([
+    function (nextCall) {
+      let sqlsss = "SELECT * FROM plateform_login";
+      connection.query(sqlsss, async function (err, appData) {
+        if (err) {
+          await teleStockMsg("App data fetch api failed");
+          await logUser("App data fetch api failed");
+        } else {
+          let requestHeaders1 = {
+            "accept": "application/json",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Api-Version": "2.0",
+            "Authorization": "Bearer " + appData[0].access_token
+          }
 
-/** historical-data apis */
+          request({
+            uri: "https://api-v2.upstox.com/historical-candle/intraday/" + req.query.instrumentKey + "/" + req.query.interval,
+            method: "GET",
+            headers: requestHeaders1
+          }, async (err, response, success) => {
+            if (err) {
+              await teleStockMsg("Intraday candle data featch failed");
+              await logUser("Intraday candle data featch failed");
+              return nextCall({
+                "message": "something went wrong",
+                "data": null
+              });
+            } else {
+              let finalData = JSON.parse(success);
+              if (finalData.status && finalData.status == "error") {
+                finalData.client_secret = appData[0].client_secret;
+                finalData.status1 = "logout";
+                await updateLoginUser(finalData)
+                await teleStockMsg("Intraday candle data featch failed")
+                await logUser("Intraday candle data featch failed")
+                return nextCall({
+                  "message": "something went wrong",
+                  "data": finalData
+                });
+              } else {
+                let originalCandles = finalData.data.candles;
+                let convertedCandles = originalCandles.map(candle => {
+                  return {
+                    "date": candle[0],
+                    "open": candle[1],
+                    "high": candle[2],
+                    "low": candle[3],
+                    "close": candle[4],
+                    "vol": candle[5],
+                    "oi": candle[6]
+                  };
+                });
+                let desiredFormat = {
+                  "status": "success",
+                  "data": {
+                    "candles": convertedCandles
+                  }
+                };
+                await teleStockMsg("Intraday candle data featch successfully")
+                await logUser("Intraday candle data featch successfully")
+                nextCall(null, desiredFormat);
+              }
+            }
+          })
+        }
+      })
+    },
+  ], function (err, response) {
+    if (err) {
+      return res.send({
+        status_api: err.code ? err.code : 400,
+        message: (err && err.message) || "someyhing went wrong",
+        data: err.data ? err.data : null
+      });
+    }
+    return res.send({
+      status_api: 200,
+      message: "Intraday data get successfully",
+      data: response
+    });
+  });
+});
+
+
+/** BotStatus apis */
 router.get('/botStatus', function (req, res) {
   async.waterfall([
     function (nextCall) {
       let sqlsss = "SELECT * FROM plateform_login";
       connection.query(sqlsss, async function (err, appData) {
         if (err) {
-          await logUser("app data fetch api failed");
+          await teleStockMsg("App data fetch api failed");
+          await logUser("App data fetch api failed");
         } else {
           let requestHeaders1 = {
             "accept": "application/json",
@@ -429,7 +522,8 @@ router.get('/botStatus', function (req, res) {
             headers: requestHeaders1
           }, async (err, response, success) => {
             if (err) {
-              await logUser("botStatus data featch failed");
+              await teleStockMsg("BotStatus data featch failed");
+              await logUser("BotStatus data featch failed");
               return nextCall({
                 "message": "something went wrong",
                 "data": null
@@ -440,13 +534,14 @@ router.get('/botStatus', function (req, res) {
                 finalData.client_secret = appData[0].client_secret;
                 finalData.status1 = "logout";
                 await updateLoginUser(finalData)
-                await logUser("botStatus data featch failed")
+                await teleStockMsg("BotStatus data featch failed")
+                await logUser("BotStatus data featch failed")
                 return nextCall({
                   "message": "something went wrong",
                   "data": finalData
                 });
               } else {
-                await logUser("historical candle data featch successfully")
+                await logUser("BotStatus candle data featch successfully")
                 nextCall(null, finalData);
               }
             }
@@ -474,6 +569,7 @@ function checkloginUser(data) {
   let sqlss = "SELECT COUNT(*) as cnt FROM plateform_login WHERE user_id=" + JSON.stringify(data.user_id);
   connection.query(sqlss, async function (err, dataLogin) {
     if (err) {
+      await teleStockMsg("check login User detail failed")
       await logUser("check login User detail failed")
     } else {
       if (dataLogin[0].cnt == 0) {
@@ -501,8 +597,10 @@ function loginUser(data) {
   let sqlss = "INSERT INTO plateform_login (user_id,user_name,email,broker,client_id,client_secret,redirect_uri,status,access_token) VALUES ?";
   connection.query(sqlss, [values], async function (err, data) {
     if (err) {
+      await teleStockMsg("new user login failed")
       await logUser("new user login failed")
     } else {
+      await teleStockMsg("new  user login successfully")
       await logUser("new  user login successfully")
     }
   })
@@ -516,8 +614,10 @@ function updateLoginUser(data) {
   var sqlss = "UPDATE plateform_login set status =? ,access_token =? WHERE client_secret =" + JSON.stringify(data.client_secret);
   connection.query(sqlss, values, async function (err, data) {
     if (err) {
+      await teleStockMsg("old user login failed")
       await logUser("old user login failed")
     } else {
+      await teleStockMsg("old user login successfully")
       await logUser("old user login successfully")
     }
   })
@@ -830,102 +930,12 @@ router.post('/api/editFlipkartFlags', function (req, res) {
   });
 });
 
-function urlencode(str) {
-  return str.replace(/%21/g, '!').replace(/%22/g, '"').replace(/%26/g, '&')
-    .replace(/%27/g, '\'').replace(/%3A/g, ':').replace(/%2F/g, '/api/').replace(/%3D/g, '=')
-    .replace(/%28/g, '(').replace(/%3F/g, '?').replace(/%29/g, ')').replace(/%2A/g, '*')
-    .replace(/%20/g, '+');
-}
-
-function conurlencode(str) {
-  return str.replace(/%21/g, '!').replace(/%22/g, '"').replace(/%26/g, '&')
-    .replace(/%27/g, '\'').replace(/%3A/g, ':').replace(/%2F/g, '/').replace(/%3D/g, '=')
-    .replace(/%28/g, '(').replace(/%3F/g, '?').replace(/%29/g, ')').replace(/%2A/g, '*')
-    .replace(/%20/g, '+');
-}
-
-function urldecode(str) {
-  return str.replace(/&/g, '%26').replace(/=/g, '%3D').replace(/[?]/g, '%3F').replace(/[+]/g, '%2B').replace(/[[]/g, '%5B').replace(/[]]/g, '%5D');
-}
-
-router.post('/api/unconvert_posts_forward', function (req, res, next) {
-  async.waterfall([
-    function (nextCall) {
-      let sqlsss = "SELECT * FROM post_flags";
-      connection.query(sqlsss, function (err, flagData) {
-        if (err) {
-          console.log('err: ', err);
-        }
-        let ListflagData = flagData[0];
-        let bufferObj = Buffer.from(req.body.convertText, "utf8");
-        let base64String = bufferObj.toString("base64");
-        let finalAmazon = {
-          "plateform": "adminPanelPost",
-          "telegram": req.body.teleSendFlag,
-          "whatsapp": req.body.WattsSendFlag,
-          "convert": req.body.convertFlag,
-          "type": req.body.postType,
-          "url": btoa(req.body.postImg),
-          "msg": base64String
-        };
-
-        teleAutoname(JSON.stringify(finalAmazon), '@zzwpbotposting', ListflagData.bestshopping_token);
-
-        nextCall(null, req.body.convertText);
-      })
-    }
-  ], function (err, response) {
-    if (err) {
-      return res.send({
-        status: err.code ? err.code : 400,
-        message: (err && err.msg) || "someyhing went wrong"
-      });
-    }
-    return res.send({
-      status_code: 200,
-      message: "telegrame post create sucessfully",
-      data: response
-    });
-  })
-})
-
-function teleAutoVideoPostChannel(finalAmazon, img, chanelName, token) {
-  var chatId = chanelName; // <= replace with yours
-  bot = new nodeTelegramBotApi(token);
-  bot.sendVideo(chatId, img, {
-    caption: finalAmazon,
-    disable_web_page_preview: true
-  });
-}
-
-function teleAutoAudioPostChannel(finalAmazon, img, chanelName, token) {
-  var chatId = chanelName; // <= replace with yours
-  bot = new nodeTelegramBotApi(token);
-  bot.sendAudio(chatId, img, {
-    caption: finalAmazon,
-    disable_web_page_preview: true
-  });
-}
-
-function teleAutoPostChannel(finalAmazon, img, chanelName, token) {
-  var chatId = chanelName; // <= replace with yours
-  bot = new nodeTelegramBotApi(token);
-  bot.sendPhoto(chatId, img, {
-    caption: finalAmazon,
-    disable_web_page_preview: true
-  });
-}
-
-function teleAutoname(finalAmazon, chanelName, token) {
-  console.log('chanelName: ', chanelName);
-  console.log('finalAmazon: ', finalAmazon);
-  var chatId = chanelName; // <= replace with yours
-  bot = new nodeTelegramBotApi(token);
-  bot.sendMessage(chatId, finalAmazon, {
+function teleStockMsg(msg) {
+  bot = new nodeTelegramBotApi(config.token);
+  bot.sendMessage(config.channelId, "→ "+msg, {
     disable_web_page_preview: true
   })
 }
-
 
 router.get('/api/singleAllInOneData/:id', function (req, res) {
   async.waterfall([
