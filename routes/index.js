@@ -10,9 +10,7 @@ const axios = require('axios');
 var _ = require('underscore');
 var isLoggedInPolicie = require('../policies/isLoggedIn.js');
 var isUserAuthenticatedPolicy = require('../policies/isUserAuthenticated.js');
-const unshort = require('url-unshorten');
 var moment = require('moment');
-var btoa = require('btoa');
 var qs = require('qs');
 var config = require('../config/global');
 
@@ -216,12 +214,12 @@ router.get('/tradedata', function (req, res) {
   ], function (err, response) {
     if (err) {
       return res.send({
-        status: err.code ? err.code : 400,
+        status_api: err.code ? err.code : 400,
         message: (err && err.msg) || "someyhing went wrong"
       });
     }
     return res.send({
-      status: 200,
+      status_api: 200,
       message: "Single recored sucessfully",
       data: response
     });
@@ -234,10 +232,20 @@ setInterval(function setup() {
     if (err) {
       await logUser("App data fetch api failed");
     } else {
+      testServer();
       console.log('appData: ', appData[0]);
     }
   })
 }, 19000)
+
+function testServer(){   
+  request({
+    uri: "https://stockbot-wkri.onrender.com/",
+    method: "GET",
+  }, (err, response, body) => {
+    console.log('body: ', body);
+  })
+}
 
 /** Authentication apis */
 router.get('/login', function (req, res) {
@@ -517,7 +525,7 @@ router.get('/botStatus', function (req, res) {
           }
 
           request({
-            uri: "https://api-v2.upstox.com/user/get-funds-and-margin",
+            uri: "https://api-v2.upstox.com/user/profile",
             method: "GET",
             headers: requestHeaders1
           }, async (err, response, success) => {
@@ -560,6 +568,136 @@ router.get('/botStatus', function (req, res) {
     return res.send({
       status_api: 200,
       message: "BotStatus get successfully",
+      data: response
+    });
+  });
+});
+
+/** Get trades for day apis */
+router.get('/get-trades-for-day', function (req, res) {
+  async.waterfall([
+    function (nextCall) {
+      let sqlsss = "SELECT * FROM plateform_login";
+      connection.query(sqlsss, async function (err, appData) {
+        if (err) {
+          await teleStockMsg("Get trades for day fetch api failed");
+          await logUser("Get trades for day fetch api failed");
+        } else {
+          let requestHeaders1 = {
+            "accept": "application/json",
+            "Api-Version": "2.0",
+            "Authorization": "Bearer " + appData[0].access_token
+          }
+
+          request({
+            uri: "https://api-v2.upstox.com/order/trades/get-trades-for-day",
+            method: "GET",
+            headers: requestHeaders1
+          }, async (err, response, success) => {
+            if (err) {
+              await teleStockMsg("Get trades for day featch failed");
+              await logUser("Get trades for day featch failed");
+              return nextCall({
+                "message": "something went wrong",
+                "data": null
+              });
+            } else {
+              let finalData = JSON.parse(success);
+              if (finalData.status && finalData.status == "error") {
+                finalData.client_secret = appData[0].client_secret;
+                finalData.status1 = "logout";
+                await updateLoginUser(finalData)
+                await teleStockMsg("Get trades for day featch failed")
+                await logUser("Get trades for day featch failed")
+                return nextCall({
+                  "message": "something went wrong",
+                  "data": finalData
+                });
+              } else {
+                await logUser("Get trades for day data featch successfully")
+                nextCall(null, finalData);
+              }
+            }
+          })
+        }
+      })
+    },
+  ], function (err, response) {
+    if (err) {
+      return res.send({
+        status_api: err.code ? err.code : 400,
+        message: (err && err.message) || "someyhing went wrong",
+        data: err.data ? err.data : null
+      });
+    }
+    return res.send({
+      status_api: 200,
+      message: "Get trades for day data get successfully",
+      data: response
+    });
+  });
+});
+
+/** Get order book apis */
+router.get('/all-book-order', function (req, res) {
+  async.waterfall([
+    function (nextCall) {
+      let sqlsss = "SELECT * FROM plateform_login";
+      connection.query(sqlsss, async function (err, appData) {
+        if (err) {
+          await teleStockMsg("Get order book fetch api failed");
+          await logUser("Get order book fetch api failed");
+        } else {
+          let requestHeaders1 = {
+            "accept": "application/json",
+            "Api-Version": "2.0",
+            "Authorization": "Bearer " + appData[0].access_token
+          }
+
+          request({
+            uri: "https://api-v2.upstox.com/order/retrieve-all",
+            method: "GET",
+            headers: requestHeaders1
+          }, async (err, response, success) => {
+            if (err) {
+              await teleStockMsg("Get order book featch failed");
+              await logUser("Get order book featch failed");
+              return nextCall({
+                "message": "something went wrong",
+                "data": null
+              });
+            } else {
+              let finalData = JSON.parse(success);
+              if (finalData.status && finalData.status == "error") {
+                finalData.client_secret = appData[0].client_secret;
+                finalData.status1 = "logout";
+                await updateLoginUser(finalData)
+                await teleStockMsg("Get order book featch failed")
+                await logUser("Get order book featch failed")
+                return nextCall({
+                  "message": "something went wrong",
+                  "data": finalData
+                });
+              } else {
+                await logUser("Get order book data featch successfully")
+                nextCall(null, finalData);
+              }
+            }
+          })
+        }
+      })
+    },
+  ], function (err, response) {
+    if (err) {
+      return res.send({
+        status_api: err.code ? err.code : 400,
+        message: (err && err.message) || "someyhing went wrong",
+        data: err.data ? err.data : null
+      });
+    }
+    return res.send({
+      status_api: 200,
+      message: "Get order book data get successfully",
       data: response
     });
   });
