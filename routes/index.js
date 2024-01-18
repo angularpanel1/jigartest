@@ -926,8 +926,20 @@ router.get('/marketQuotesLTP', function (req, res) {
                   "data": finalData
                 });
               } else {
-                await logUser("Order book list candle data featch successfully")
-                nextCall(null, finalData);
+                let originalCandles = finalData.data;
+                let convertedCandles =  Object.entries(originalCandles).map(([key, value]) => ({
+                  "name": key,
+                  "last_price": value.last_price,
+                  "instrument_token": value.instrument_token
+                }))
+                let desiredFormat = {
+                  "status": "success",
+                  "data": {
+                    "instrument": convertedCandles
+                  }
+                };
+                await logUser("Market quotes LTP featch successfully")
+                nextCall(null, desiredFormat);
               }
             }
           })
