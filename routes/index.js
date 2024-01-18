@@ -452,7 +452,6 @@ router.get('/buySellApi', function (req, res) {
             'trigger_price': Number(req.query.trigger_price),
             'is_amo': req.query.is_amo = 'false' ? false : true
           }
-          console.log('data: ', data);
 
           request({
             uri: "https://api-v2.upstox.com/order/place",
@@ -499,7 +498,85 @@ router.get('/buySellApi', function (req, res) {
     }
     return res.send({
       status_api: 200,
-      message: "Historical data get successfully",
+      message: "BuySellApi Order successfully",
+      data: response
+    });
+  });
+});
+
+/** Order modify apis */
+router.get('/orderModifyApi', function (req, res) {
+  async.waterfall([
+    function (nextCall) {
+      let sqlsss = "SELECT * FROM plateform_login";
+      connection.query(sqlsss, async function (err, appData) {
+        if (err) {
+          await teleStockMsg("App data fetch api failed");
+          await logUser("App data fetch api failed");
+        } else {
+          let requestHeaders1 = {
+            "accept": "application/json",
+            "Content-Type": "application/json",
+            "Api-Version": "2.0",
+            "Authorization": "Bearer " + appData[0].access_token
+          }
+
+          let data = {
+            'quantity': Number(req.query.quantity),
+            'order_id': req.query.order_id,
+            'validity': req.query.validity,
+            'price': Number(req.query.price),
+            'order_type': req.query.order_type,
+            'disclosed_quantity': Number(req.query.disclosed_quantity),
+            'trigger_price': Number(req.query.trigger_price)
+          }
+
+          request({
+            uri: "https://api-v2.upstox.com/order/modify",
+            method: "POST",
+            body: JSON.stringify(data),
+            headers: requestHeaders1
+          }, async (err, response, success) => {
+            if (err) {
+              await teleStockMsg("Order modify apis candle data featch failed");
+              await logUser("Order modify apis candle data featch failed");
+              return nextCall({
+                "message": "something went wrong",
+                "data": null
+              });
+            } else {
+              let finalData = JSON.parse(success);
+              if (finalData.status && finalData.status == "error") {
+                finalData.client_secret = appData[0].client_secret;
+                finalData.status1 = "logout";
+                await updateLoginUser(finalData)
+                await teleStockMsg("Order modify apis candle data featch failed")
+                await logUser("Order modify apis candle data featch failed")
+                return nextCall({
+                  "message": "something went wrong",
+                  "data": finalData
+                });
+              } else {
+                await teleStockMsg("Order modify apis candle data featch successfully")
+                await logUser("Order modify apis candle data featch successfully")
+                nextCall(null, finalData);
+              }
+            }
+          })
+        }
+      })
+    },
+  ], function (err, response) {
+    if (err) {
+      return res.send({
+        status_api: err.code ? err.code : 400,
+        message: (err && err.message) || "someyhing went wrong",
+        data: err.data ? err.data : null
+      });
+    }
+    return res.send({
+      status_api: 200,
+      message: "Order modify apis successfully",
       data: response
     });
   });
@@ -590,6 +667,135 @@ router.get('/intraday', function (req, res) {
   });
 });
 
+/** Order book list apis */
+router.get('/orderBookList', function (req, res) {
+  async.waterfall([
+    function (nextCall) {
+      let sqlsss = "SELECT * FROM plateform_login";
+      connection.query(sqlsss, async function (err, appData) {
+        if (err) {
+          await teleStockMsg("App data fetch api failed");
+          await logUser("App data fetch api failed");
+        } else {
+          let requestHeaders1 = {
+            "accept": "application/json",
+            "Api-Version": "2.0",
+            "Authorization": "Bearer " + appData[0].access_token
+          }
+
+          request({
+            uri: "https://api-v2.upstox.com/order/retrieve-all",
+            method: "GET",
+            headers: requestHeaders1
+          }, async (err, response, success) => {
+            if (err) {
+              await teleStockMsg("Order book list data featch failed");
+              await logUser("Order book list data featch failed");
+              return nextCall({
+                "message": "something went wrong",
+                "data": null
+              });
+            } else {
+              let finalData = JSON.parse(success);
+              if (finalData.status && finalData.status == "error") {
+                finalData.client_secret = appData[0].client_secret;
+                finalData.status1 = "logout";
+                await updateLoginUser(finalData)
+                await teleStockMsg("Order book list data featch failed")
+                await logUser("Order book list data featch failed")
+                return nextCall({
+                  "message": "something went wrong",
+                  "data": finalData
+                });
+              } else {
+                await logUser("Order book list candle data featch successfully")
+                nextCall(null, finalData);
+              }
+            }
+          })
+        }
+      })
+    },
+  ], function (err, response) {
+    if (err) {
+      return res.send({
+        status_api: err.code ? err.code : 400,
+        message: (err && err.message) || "someyhing went wrong",
+        data: err.data ? err.data : null
+      });
+    }
+    return res.send({
+      status_api: 200,
+      message: "Order book list get successfully",
+      data: response
+    });
+  });
+});
+
+/** Order cancel apis */
+router.get('/orderCancel', function (req, res) {
+  async.waterfall([
+    function (nextCall) {
+      let sqlsss = "SELECT * FROM plateform_login";
+      connection.query(sqlsss, async function (err, appData) {
+        if (err) {
+          await teleStockMsg("App data fetch api failed");
+          await logUser("App data fetch api failed");
+        } else {
+          let requestHeaders1 = {
+            "accept": "application/json",
+            "Api-Version": "2.0",
+            "Authorization": "Bearer " + appData[0].access_token
+          }
+
+          request({
+            uri: "https://api-v2.upstox.com/order/cancel?order_id="+ req.query.order_id,
+            method: "DELETE",
+            headers: requestHeaders1
+          }, async (err, response, success) => {
+            if (err) {
+              await teleStockMsg("Order cancel featch failed");
+              await logUser("Order cancel featch failed");
+              return nextCall({
+                "message": "something went wrong",
+                "data": null
+              });
+            } else {
+              let finalData = JSON.parse(success);
+              if (finalData.status && finalData.status == "error") {
+                finalData.client_secret = appData[0].client_secret;
+                finalData.status1 = "logout";
+                await updateLoginUser(finalData)
+                await teleStockMsg("Order cancel featch failed")
+                await logUser("Order cancel featch failed")
+                return nextCall({
+                  "message": "something went wrong",
+                  "data": finalData
+                });
+              } else {
+                await logUser("Order book list candle data featch successfully")
+                nextCall(null, finalData);
+              }
+            }
+          })
+        }
+      })
+    },
+  ], function (err, response) {
+    if (err) {
+      return res.send({
+        status_api: err.code ? err.code : 400,
+        message: (err && err.message) || "someyhing went wrong",
+        data: err.data ? err.data : null
+      });
+    }
+    return res.send({
+      status_api: 200,
+      message: "Order cancel successfully",
+      data: response
+    });
+  });
+});
 
 /** BotStatus apis */
 router.get('/botStatus', function (req, res) {
