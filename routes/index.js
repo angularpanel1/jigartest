@@ -13,11 +13,97 @@ var isUserAuthenticatedPolicy = require('../policies/isUserAuthenticated.js');
 var moment = require('moment');
 var qs = require('qs');
 var config = require('../config/global');
+// Import required modules
+var UpstoxClient = require("upstox-js-sdk");
+const WebSocket = require("ws").WebSocket;
 
 /* GET home page. */
 router.get('/', function (req, res, next) {
   res.send('respond with a resource');
 });
+
+ // Initialize the Upstox client and set the OAuth2 access token
+ ORDER_TAG = "PLACE_SL";
+ SL_PRCNT = 8.5;
+ let defaultClient = UpstoxClient.ApiClient.instance;
+ let apiVersion = "2.0";
+ let OAUTH2 = defaultClient.authentications["OAUTH2"];
+
+// Define an asynchronous function to get PortfolioFeedUrl from the Upstox server
+const getPortfolioFeedUrl = async () => {
+  return new Promise((resolve, reject) => {
+    // Initialize a Websocket API instance
+    let apiInstance = new UpstoxClient.WebsocketApi();
+
+    // Request to get the portfolio stream feed authorization
+    apiInstance.getPortfolioStreamFeedAuthorize(
+      apiVersion,
+      (error, data, response) => {
+        if (error) {
+          // If there's an error, log it and reject the promise
+          reject(error);
+        } else {
+          // If no error, log the returned data and resolve the promise
+          resolve(data.data.authorizedRedirectUri);
+        }
+      }
+    );
+  });
+};
+
+// Define an asynchronous function to connect to the websocket
+const connectWebSocket = async (wsUrl) => {
+  return new Promise((resolve, reject) => {
+    // Initialize a WebSocket instance with the authorized URL and appropriate headers
+    const ws = new WebSocket(wsUrl, {
+      headers: {
+        "Api-Version": apiVersion,
+        Authorization: "Bearer " + OAUTH2.accessToken,
+      },
+      followRedirects: true,
+    });
+
+    // Set up WebSocket event handlers
+    ws.on("open", function open() {
+      console.log("connected");
+      resolve(ws); // Resolve the promise when the WebSocket is opened
+    });
+
+    ws.on("close", function close() {
+      console.log("disconnected");
+    });
+
+    ws.on("message", function message(data) {
+      console.log("data received", data.toString());
+    });
+
+    ws.on("error", function onError(error) {
+      console.log("error:", error);
+      reject(error); // Reject the promise when there's an error
+    });
+  });
+};
+
+// Execute the async functions to get PortfolioFeedUrl and connect to WebSocket
+(async () => {
+  try {
+    console.log('try: ');
+    // let sqlsss = "SELECT * FROM plateform_login";
+    // connection.query(sqlsss, async function (err, appData) {
+    //   if (err) {
+    //     await logUser("App data fetch api failed websocket");
+    //   } else {
+    //     OAUTH2.accessToken = appData[0].access_token;
+    //     console.log('appData2222: ', appData[0].access_token);
+    //     const wsUrl = await getPortfolioFeedUrl(); // First, get the authorization
+    //     const ws = await connectWebSocket(wsUrl); // Then, connect to the WebSocket using the authorized URL
+    //   }
+    // })
+  } catch (error) {
+    // Catch and log any errors
+    console.error("An error occurred:", error);
+  }
+})();
 
 router.get('/tradedata', function (req, res) {
   async.waterfall([
@@ -229,9 +315,11 @@ router.get('/tradedata', function (req, res) {
 setInterval(function setup() {
   let sqlsss = "SELECT * FROM app_data";
   connection.query(sqlsss, async function (err, appData) {
+    console.log('appData: ', appData);
     if (err) {
       await logUser("App data fetch api failed");
     } else {
+     
       testServer();
       console.log('appData: ', appData[0]);
     }
@@ -792,6 +880,201 @@ router.get('/orderCancel', function (req, res) {
     return res.send({
       status_api: 200,
       message: "Order cancel successfully",
+      data: response
+    });
+  });
+});
+
+/** Market quotes LTP . apis */
+router.get('/marketQuotesLTP', function (req, res) {
+  async.waterfall([
+    function (nextCall) {
+      let sqlsss = "SELECT * FROM plateform_login";
+      connection.query(sqlsss, async function (err, appData) {
+        if (err) {
+          await teleStockMsg("App data fetch api failed");
+          await logUser("App data fetch api failed");
+        } else {
+          let requestHeaders1 = {
+            "accept": "application/json",
+            "Api-Version": "2.0",
+            "Authorization": "Bearer " + appData[0].access_token
+          }
+
+          request({
+            uri: "https://api-v2.upstox.com/market-quote/ltp?symbol="+ req.query.symbol,
+            method: "GET",
+            headers: requestHeaders1
+          }, async (err, response, success) => {
+            if (err) {
+              await teleStockMsg("Market quotes LTP featch failed");
+              await logUser("Market quotes LTP featch failed");
+              return nextCall({
+                "message": "something went wrong",
+                "data": null
+              });
+            } else {
+              let finalData = JSON.parse(success);
+              if (finalData.status && finalData.status == "error") {
+                finalData.client_secret = appData[0].client_secret;
+                finalData.status1 = "logout";
+                await updateLoginUser(finalData)
+                await teleStockMsg("Market quotes LTP featch failed")
+                await logUser("Market quotes LTP featch failed")
+                return nextCall({
+                  "message": "something went wrong",
+                  "data": finalData
+                });
+              } else {
+                await logUser("Order book list candle data featch successfully")
+                nextCall(null, finalData);
+              }
+            }
+          })
+        }
+      })
+    },
+  ], function (err, response) {
+    if (err) {
+      return res.send({
+        status_api: err.code ? err.code : 400,
+        message: (err && err.message) || "someyhing went wrong",
+        data: err.data ? err.data : null
+      });
+    }
+    return res.send({
+      status_api: 200,
+      message: "Market quotes LTP successfully",
+      data: response
+    });
+  });
+});
+
+/** getHolding apis */
+router.get('/getHolding', function (req, res) {
+  async.waterfall([
+    function (nextCall) {
+      let sqlsss = "SELECT * FROM plateform_login";
+      connection.query(sqlsss, async function (err, appData) {
+        if (err) {
+          await teleStockMsg("App data fetch api failed");
+          await logUser("App data fetch api failed");
+        } else {
+          let requestHeaders1 = {
+            "accept": "application/json",
+            "Api-Version": "2.0",
+            "Authorization": "Bearer " + appData[0].access_token
+          }
+
+          request({
+            uri: "https://api-v2.upstox.com/portfolio/long-term-holdings",
+            method: "GET",
+            headers: requestHeaders1
+          }, async (err, response, success) => {
+            if (err) {
+              await teleStockMsg("getHolding data featch failed");
+              await logUser("getHolding data featch failed");
+              return nextCall({
+                "message": "something went wrong",
+                "data": null
+              });
+            } else {
+              let finalData = JSON.parse(success);
+              if (finalData.status && finalData.status == "error") {
+                finalData.client_secret = appData[0].client_secret;
+                finalData.status1 = "logout";
+                await updateLoginUser(finalData)
+                await teleStockMsg("getHolding data featch failed")
+                await logUser("getHolding data featch failed")
+                return nextCall({
+                  "message": "something went wrong",
+                  "data": finalData
+                });
+              } else {
+                await logUser("getHolding candle data featch successfully")
+                nextCall(null, finalData);
+              }
+            }
+          })
+        }
+      })
+    },
+  ], function (err, response) {
+    if (err) {
+      return res.send({
+        status_api: err.code ? err.code : 400,
+        message: (err && err.message) || "someyhing went wrong",
+        data: err.data ? err.data : null
+      });
+    }
+    return res.send({
+      status_api: 200,
+      message: "getHolding get successfully",
+      data: response
+    });
+  });
+});
+
+/** getPositions apis */
+router.get('/getPositions', function (req, res) {
+  async.waterfall([
+    function (nextCall) {
+      let sqlsss = "SELECT * FROM plateform_login";
+      connection.query(sqlsss, async function (err, appData) {
+        if (err) {
+          await teleStockMsg("App data fetch api failed");
+          await logUser("App data fetch api failed");
+        } else {
+          let requestHeaders1 = {
+            "accept": "application/json",
+            "Api-Version": "2.0",
+            "Authorization": "Bearer " + appData[0].access_token
+          }
+
+          request({
+            uri: "https://api-v2.upstox.com/portfolio/short-term-positions",
+            method: "GET",
+            headers: requestHeaders1
+          }, async (err, response, success) => {
+            if (err) {
+              await teleStockMsg("getPositions data featch failed");
+              await logUser("getPositions data featch failed");
+              return nextCall({
+                "message": "something went wrong",
+                "data": null
+              });
+            } else {
+              let finalData = JSON.parse(success);
+              if (finalData.status && finalData.status == "error") {
+                finalData.client_secret = appData[0].client_secret;
+                finalData.status1 = "logout";
+                await updateLoginUser(finalData)
+                await teleStockMsg("getPositions data featch failed")
+                await logUser("getPositions data featch failed")
+                return nextCall({
+                  "message": "something went wrong",
+                  "data": finalData
+                });
+              } else {
+                await logUser("getPositions candle data featch successfully")
+                nextCall(null, finalData);
+              }
+            }
+          })
+        }
+      })
+    },
+  ], function (err, response) {
+    if (err) {
+      return res.send({
+        status_api: err.code ? err.code : 400,
+        message: (err && err.message) || "someyhing went wrong",
+        data: err.data ? err.data : null
+      });
+    }
+    return res.send({
+      status_api: 200,
+      message: "getPositions get successfully",
       data: response
     });
   });

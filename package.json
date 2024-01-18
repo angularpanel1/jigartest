@@ -27,6 +27,8 @@
     "nodemon": "^2.0.2",
     "qs": "^6.11.2",
     "twilio": "^3.42.0",
-    "underscore": "^1.9.2"
+    "underscore": "^1.9.2",
+    "upstox-js-sdk": "^2.2.0",
+    "ws": "^8.16.0"
   }
 }
