@@ -902,7 +902,7 @@ router.get('/marketQuotesLTP', function (req, res) {
           }
 
           request({
-            uri: "https://api-v2.upstox.com/market-quote/ltp?symbol="+ req.query.symbol,
+            uri: "https://api-v2.upstox.com/market-quote/ltp?instrument_key="+ req.query.instrument_key,
             method: "GET",
             headers: requestHeaders1
           }, async (err, response, success) => {
