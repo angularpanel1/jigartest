@@ -422,6 +422,89 @@ router.get('/historical-data', function (req, res) {
   });
 });
 
+/** Buy/sell apis */
+router.get('/buySellApi', function (req, res) {
+  async.waterfall([
+    function (nextCall) {
+      let sqlsss = "SELECT * FROM plateform_login";
+      connection.query(sqlsss, async function (err, appData) {
+        if (err) {
+          await teleStockMsg("App data fetch api failed");
+          await logUser("App data fetch api failed");
+        } else {
+          let requestHeaders1 = {
+            "accept": "application/json",
+            "Content-Type": "application/json",
+            "Api-Version": "2.0",
+            "Authorization": "Bearer " + appData[0].access_token
+          }
+
+          let data = {
+            'quantity': Number(req.query.quantity),
+            'product': req.query.product,
+            'validity': req.query.validity,
+            'price': Number(req.query.price),
+            'tag': req.query.tag,
+            'order_type': req.query.order_type,
+            'instrument_token': req.query.instrument_token,
+            'transaction_type': req.query.transaction_type,
+            'disclosed_quantity': Number(req.query.disclosed_quantity),
+            'trigger_price': Number(req.query.trigger_price),
+            'is_amo': req.query.is_amo = 'false' ? false : true
+          }
+          console.log('data: ', data);
+
+          request({
+            uri: "https://api-v2.upstox.com/order/place",
+            method: "POST",
+            body: JSON.stringify(data),
+            headers: requestHeaders1
+          }, async (err, response, success) => {
+            if (err) {
+              await teleStockMsg("BuySellApi candle data featch failed");
+              await logUser("BuySellApi candle data featch failed");
+              return nextCall({
+                "message": "something went wrong",
+                "data": null
+              });
+            } else {
+              let finalData = JSON.parse(success);
+              if (finalData.status && finalData.status == "error") {
+                finalData.client_secret = appData[0].client_secret;
+                finalData.status1 = "logout";
+                await updateLoginUser(finalData)
+                await teleStockMsg("BuySellApi candle data featch failed")
+                await logUser("BuySellApi candle data featch failed")
+                return nextCall({
+                  "message": "something went wrong",
+                  "data": finalData
+                });
+              } else {
+                await teleStockMsg("BuySellApi candle data featch successfully")
+                await logUser("BuySellApi candle data featch successfully")
+                nextCall(null, finalData);
+              }
+            }
+          })
+        }
+      })
+    },
+  ], function (err, response) {
+    if (err) {
+      return res.send({
+        status_api: err.code ? err.code : 400,
+        message: (err && err.message) || "someyhing went wrong",
+        data: err.data ? err.data : null
+      });
+    }
+    return res.send({
+      status_api: 200,
+      message: "Historical data get successfully",
+      data: response
+    });
+  });
+});
+
 /** intraday apis */
 router.get('/intraday', function (req, res) {
   async.waterfall([
