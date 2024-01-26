@@ -88,17 +88,17 @@ const connectWebSocket = async (wsUrl) => {
 (async () => {
   try {
     console.log('try: ');
-    // let sqlsss = "SELECT * FROM plateform_login";
-    // connection.query(sqlsss, async function (err, appData) {
-    //   if (err) {
-    //     await logUser("App data fetch api failed websocket");
-    //   } else {
-    //     OAUTH2.accessToken = appData[0].access_token;
-    //     console.log('appData2222: ', appData[0].access_token);
-    //     const wsUrl = await getPortfolioFeedUrl(); // First, get the authorization
-    //     const ws = await connectWebSocket(wsUrl); // Then, connect to the WebSocket using the authorized URL
-    //   }
-    // })
+    let sqlsss = "SELECT * FROM plateform_login";
+    connection.query(sqlsss, async function (err, appData) {
+      if (err) {
+        await logUser("App data fetch api failed websocket");
+      } else {
+        OAUTH2.accessToken = appData[0].access_token;
+        console.log('appData2222: ', appData[0].access_token);
+        const wsUrl = await getPortfolioFeedUrl(); // First, get the authorization
+        const ws = await connectWebSocket(wsUrl); // Then, connect to the WebSocket using the authorized URL
+      }
+    })
   } catch (error) {
     // Catch and log any errors
     console.error("An error occurred:", error);
@@ -520,6 +520,7 @@ router.get('/buySellApi', function (req, res) {
           await teleStockMsg("App data fetch api failed");
           await logUser("App data fetch api failed");
         } else {
+          if(req.query.live_trade){
           let requestHeaders1 = {
             "accept": "application/json",
             "Content-Type": "application/json",
@@ -573,6 +574,10 @@ router.get('/buySellApi', function (req, res) {
               }
             }
           })
+         }else{
+          await teleStockMsg(req.query.order_type +" api featch successfully")
+          await logUser(req.query.order_type +" api featch successfully")
+         }
         }
       })
     },
@@ -1329,20 +1334,36 @@ function loginUser(data) {
 }
 
 function updateLoginUser(data) {
-  values = [
-    data.status1,
-    data.access_token ? data.access_token : ""
-  ]
-  var sqlss = "UPDATE plateform_login set status =? ,access_token =? WHERE client_secret =" + JSON.stringify(data.client_secret);
-  connection.query(sqlss, values, async function (err, data) {
-    if (err) {
-      await teleStockMsg("old user login failed")
-      await logUser("old user login failed")
-    } else {
-      await teleStockMsg("old user login successfully")
-      await logUser("old user login successfully")
-    }
-  })
+  if(data.status1 == 'login'){
+    values = [
+      data.status1,
+      data.access_token ? data.access_token : ""
+    ]
+    var sqlss = "UPDATE plateform_login set status =? ,access_token =? WHERE client_secret =" + JSON.stringify(data.client_secret);
+    connection.query(sqlss, values, async function (err, data) {
+      if (err) {
+        await teleStockMsg("old user login failed")
+        await logUser("old user login failed")
+      } else {
+        await teleStockMsg("old user login successfully")
+        await logUser("old user login successfully")
+      }
+    })
+  }else{
+    values = [
+      data.status1
+    ]
+    var sqlss = "UPDATE plateform_login set status =? WHERE client_secret =" + JSON.stringify(data.client_secret);
+    connection.query(sqlss, values, async function (err, data) {
+      if (err) {
+        await teleStockMsg("old user login failed")
+        await logUser("old user login failed")
+      } else {
+        await teleStockMsg("old user login successfully")
+        await logUser("old user login successfully")
+      }
+    })
+  }
 }
 
 function logUser(msg) {
