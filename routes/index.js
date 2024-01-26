@@ -520,7 +520,7 @@ router.get('/buySellApi', function (req, res) {
           await teleStockMsg("App data fetch api failed");
           await logUser("App data fetch api failed");
         } else {
-          if(req.query.live_trade){
+          if(req.query.live_trade == 'true' || req.query.live_trade == 'TRUE'){
           let requestHeaders1 = {
             "accept": "application/json",
             "Content-Type": "application/json",
@@ -577,6 +577,7 @@ router.get('/buySellApi', function (req, res) {
          }else{
           await teleStockMsg(req.query.order_type +" api featch successfully")
           await logUser(req.query.order_type +" api featch successfully")
+          nextCall(null, req.query);
          }
         }
       })
