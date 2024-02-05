@@ -36,7 +36,7 @@ function reconnect(connection){
   connection.connect(function(err){
       if(err) {
           //- Try to connect every 2 seconds.
-          setTimeout(reconnect, 2000);
+          setTimeout(reconnect, 5000);
       }else {
           console.log("\n\t *** New connection established with the database. ***")
           return connection;
