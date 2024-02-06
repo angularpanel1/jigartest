@@ -8,21 +8,16 @@ var db_config = {
   };
 
 //- Create the connection variable
-var connection = mysql.createPool(db_config);
+var connection = mysql.createConnection(db_config);
 
 //- Establish a new connection
-connection.getConnection(function(err,data){
+connection.connect(function(err){
   if(err) {
       // mysqlErrorHandling(connection, err);
-      console.log("\n\t ***RECONNECTING: Cannot establish a connection with the database. ***");
+      console.log("\n\t *** Cannot establish a connection with the database. ***");
 
-      data.release();
-	  	console.log(' Error getting mysql_pool connection: ' + err);
-	  	throw err;
-    //   connection = reconnect(connection);
+      connection = reconnect(connection);
   }else {
-    data.release();
-
       console.log("\n\t *** New connection established with the database. ***")
   }
 });
