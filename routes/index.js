@@ -568,13 +568,15 @@ router.get('/buySellApi', function (req, res) {
                   "data": finalData
                 });
               } else {
-                var html = '<b>JS</b>📈 ' + finalData.order_type + '📈\n\n' +
+                req.query.order_id = finalData.data.order_id;
+                req.query.user_id = appData[0].user_id;
+                var html = '<b>JS</b>📈 ' + req.query.order_type + '📈\n\n' +
                 '♨️ <b style="background-color:red;">User Name : </b> ' + appData[0].user_name + '\n' +
-                '🌐 <b>Share Name : </b> ' + finalData.instrument_token + '\n' +
-                '🚫 <b>Price : </b> ' + finalData.price + '\n' +
-                '💰 <b>Quantity : </b> ' + finalData.quantity + '\n' +
+                '🌐 <b>Share Name : </b> ' + req.query.instrument_token + '\n' +
+                '🚫 <b>Price : </b> ' + req.query.price + '\n' +
+                '💰 <b>Quantity : </b> ' + req.query.quantity + '\n' +
                 '🕙 <b>Order Book Time : </b> ' + finalDate + '\n' +
-                '📋 <b>Order Id : </b> ' + finalData.order_id + '\n' ;
+                '📋 <b>Order Id : </b> ' + req.query.order_id + '\n' ;
                 // '🟢 <b>High Value : </b> <i> ' + finalData.high_value + '</i>\n' +
                 // '🔴 <b>Low Value : </b> <i> ' + finalData.low_value + '</i>\n';
                 await teleStockMsg(html)
