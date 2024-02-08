@@ -8,7 +8,7 @@ var connection = require('../config/connection');
 const BitlyClient = require('bitly').BitlyClient;
 const axios = require('axios');
 var _ = require('underscore');
-var moment = require('moment');
+var moment = require('moment-timezone');
 var qs = require('qs');
 var config = require('../config/global');
 // Import required modules
@@ -514,8 +514,7 @@ router.get('/buySellApi', function (req, res) {
     function (nextCall) {
       let sqlsss = "SELECT * FROM plateform_login";
       connection.query(sqlsss, async function (err, appData) {
-        let jodaTime = new Date();
-        let finalDate = jodaTime.getHours() +":"+jodaTime.getMinutes()+":"+jodaTime.getSeconds();
+        let finalDate =  moment.tz('Asia/Kolkata').format('HH:mm:ss');
         if (err) {
           await teleStockMsg("App data fetch api failed");
           await logUser("App data fetch api failed");
@@ -693,8 +692,7 @@ router.get('/intraday', function (req, res) {
     function (nextCall) {
       let sqlsss = "SELECT * FROM plateform_login";
       connection.query(sqlsss, async function (err, appData) {
-        let jodaTime = new Date();
-        let finalDate = jodaTime.getHours() +":"+jodaTime.getMinutes()+":"+jodaTime.getSeconds();
+        let finalDate =  moment.tz('Asia/Kolkata').format('HH:mm:ss');
         if (err) {
           await teleStockMsg("<b>JS</b>🔴 App data candle data featch failed "+ finalDate);
           await logUser("App data fetch api failed");
