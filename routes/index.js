@@ -573,7 +573,7 @@ router.get('/buySellApi', function (req, res) {
                 // await orderBookDb(req.query);
                 let html;
                 if(req.query.order_type != 'SL' && req.query.order_type != 'SL-M'){
-                  html = '<b>Account Id : </b> Vijay <b>[Upstock]</b> \n\n' +
+                  html = '<b>Account Id : </b> Sonal <b>[Upstock]</b> \n\n' +
                  '🔀 <b>Direction : </b> <b> ' + req.query.transaction_type + '</b>'+(req.query.transaction_type == 'BUY'? '🟢' : '🔴')+'\n' +
                  '🌐 <b>Script : </b> ' + req.query.instrument_token + '\n' +
                  '💰 <b>Price : ₹</b> ' + req.query.price + '\n' +
@@ -582,7 +582,7 @@ router.get('/buySellApi', function (req, res) {
                  '🕙 <b>Trade Time : </b> ' + finalDateTime + '\n' +
                  '📋 <b>Order Id : </b> ' + req.query.order_id + '\n' ;
                 }else{
-                  html = '<b>Account Id : </b> Vijay <b>[Upstock]</b> \n\n' +
+                  html = '<b>Account Id : </b> Sonal <b>[Upstock]</b> \n\n' +
                  '🔀 <b>Direction : </b> <b> ' + req.query.transaction_type + '</b>'+(req.query.transaction_type == 'BUY'? '🟢' : '🔴')+'\n' +
                  '🌐 <b>Script : </b> ' + req.query.instrument_token + '\n' +
                  '💰 <b>Price : ₹</b> ' + req.query.price + '\n' +
