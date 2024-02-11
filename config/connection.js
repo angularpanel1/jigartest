@@ -1,6 +1,7 @@
 var mysql  = require('mysql');
 
 var db_config = {
+    connectionLimit : 100,
     host     : 'offerzoneindia.com',
     user     : 'offerric_apadmin',
     password : 'S@!E6a6a123',
@@ -8,16 +9,21 @@ var db_config = {
   };
 
 //- Create the connection variable
-var connection = mysql.createConnection(db_config);
+var connection = mysql.createPool(db_config);
 
 //- Establish a new connection
-connection.connect(function(err){
+connection.getConnection(function(err,data){
   if(err) {
       // mysqlErrorHandling(connection, err);
-      console.log("\n\t *** Cannot establish a connection with the database. ***");
+      console.log("\n\t ***RECONNECTING: Cannot establish a connection with the database. ***");
 
-      connection = reconnect(connection);
+      data.release();
+	  	console.log(' Error getting mysql_pool connection: ' + err);
+	  	//throw err;
+       connection = reconnect(connection);
   }else {
+    data.release();
+
       console.log("\n\t *** New connection established with the database. ***")
   }
 });
@@ -30,15 +36,16 @@ function reconnect(connection){
   if(connection) connection.destroy();
 
   //- Create a new one
-  var connection = mysql.createConnection(db_config);
+  var connection = mysql.createPool(db_config);
 
   //- Try to reconnect
-  connection.connect(function(err){
+  connection.getConnection(function(err,data){
       if(err) {
+        data.release();
           //- Try to connect every 2 seconds.
-          setTimeout(reconnect, 2000);
+          setTimeout(reconnect, 5000);
       }else {
-          console.log("\n\t *** New connection established with the database. ***")
+          console.log("\n\t ***RECONNECTING: New connection established with the database. ***")
           return connection;
       }
   });
