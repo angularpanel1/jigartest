@@ -310,7 +310,6 @@ router.get('/tradedata', function (req, res) {
   });
 });
 
-
 /** get Instruments apis with filters */
 router.get('/instruments-get-data', function (req, res) {
   async.waterfall([
@@ -348,7 +347,14 @@ router.get('/instruments-get-data', function (req, res) {
               console.log(`Retrieved ${instrumentData.length} records`);
               
               // Return the filtered data
-              nextCall(null, instrumentData);
+              // nextCall(null, instrumentData);
+              // Return the formatted response
+              nextCall(null, {
+              status: "success",
+              data: {
+                  candles: instrumentData // Wrapping the array inside `candles`
+              }
+              });
           });
       }
   ], function (err, response) {
