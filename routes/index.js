@@ -310,6 +310,183 @@ router.get('/tradedata', function (req, res) {
   });
 });
 
+
+/** get Instruments apis with filters */
+router.get('/instruments-get-data', function (req, res) {
+  async.waterfall([
+      function (nextCall) {
+          // Start with base query
+          let sqlQuery = "SELECT * FROM instrument_data WHERE 1=1";
+          let queryParams = [];
+
+          // Add filters based on query parameters
+          if (req.query.asset_symbol) {
+              sqlQuery += " AND asset_symbol = ?";
+              queryParams.push(req.query.asset_symbol);
+          }
+
+          if (req.query.instrument_type) {
+              sqlQuery += " AND instrument_type = ?";
+              queryParams.push(req.query.instrument_type);
+          }
+
+          if (req.query.strike_price) {
+              sqlQuery += " AND strike_price = ?";
+              queryParams.push(parseFloat(req.query.strike_price));
+          }
+
+          // Execute query with filters
+          connection.query(sqlQuery, queryParams, async function (err, instrumentData) {
+              if (err) {
+                  console.error('Error fetching instrument data:', err);
+                  await teleStockMsg("Instrument data fetch api failed");
+                  await logUser("Instrument data fetch api failed");
+                  return nextCall(err);
+              }
+
+              // Log success message
+              console.log(`Retrieved ${instrumentData.length} records`);
+              
+              // Return the filtered data
+              nextCall(null, instrumentData);
+          });
+      }
+  ], function (err, response) {
+      if (err) {
+          return res.status(err.code || 400).json({
+              status_api: err.code || 400,
+              message: (err && err.message) || "Something went wrong",
+              data: err.data || null
+          });
+      }
+      return res.status(200).json({
+          status_api: 200,
+          message: "Instruments data fetched successfully",
+          data: response,
+          filters_applied: req.query // Include what filters were applied
+      });
+  });
+});
+
+/** instruments-data apis */
+router.get('/instruments-data', function (req, res) {
+  async.waterfall([
+      // Step 1: Delete existing records
+      function(nextCall) {
+          const deleteQuery = "TRUNCATE TABLE instrument_data";
+          connection.query(deleteQuery, function(err) {
+              if (err) {
+                  console.error('Error deleting records:', err);
+                  return nextCall(err);
+              }
+              console.log('Successfully deleted all existing records');
+              nextCall(null);
+              
+          });
+      },
+      // Step 2: Fetch and process new data
+      function(nextCall) {
+          axios({
+              method: 'get',
+              url: 'https://assets.upstox.com/market-quote/instruments/exchange/complete.json.gz',
+              responseType: 'arraybuffer'
+          })
+          .then(response => {
+              return gunzip(response.data);
+          })
+          .then(unzippedData => {
+              const jsonData = JSON.parse(unzippedData.toString());
+              
+              // Filter data for NSE_FO segment and INDEX underlying_type
+              const filteredData = jsonData.filter(item => 
+                  item.segment === "NSE_FO" && 
+                  item.underlying_type === "INDEX"
+              );
+
+              // Prepare values for bulk insert
+              const values = filteredData.map(item => [
+                  item.weekly,
+                  item.segment,
+                  item.name,
+                  item.exchange,
+                  item.expiry,
+                  item.instrument_type,
+                  item.asset_symbol,
+                  item.underlying_symbol,
+                  item.instrument_key,
+                  item.lot_size,
+                  item.freeze_quantity,
+                  item.exchange_token,
+                  item.minimum_lot,
+                  item.asset_key,
+                  item.underlying_key,
+                  item.tick_size,
+                  item.asset_type,
+                  item.underlying_type,
+                  item.trading_symbol,
+                  item.strike_price,
+                  item.qty_multiplier
+              ]);
+
+              // SQL query for bulk insert
+              const insertQuery = `
+                  INSERT INTO instrument_data (
+                      weekly,
+                      segment,
+                      name,
+                      exchange,
+                      expiry,
+                      instrument_type,
+                      asset_symbol,
+                      underlying_symbol,
+                      instrument_key,
+                      lot_size,
+                      freeze_quantity,
+                      exchange_token,
+                      minimum_lot,
+                      asset_key,
+                      underlying_key,
+                      tick_size,
+                      asset_type,
+                      underlying_type,
+                      trading_symbol,
+                      strike_price,
+                      qty_multiplier
+                  ) VALUES ?
+              `;
+
+              // Execute bulk insert
+              connection.query(insertQuery, [values], function(err, result) {
+                  if (err) {
+                      console.error('Error inserting records:', err);
+                      return nextCall(err);
+                  }
+                  console.log(`Successfully inserted ${result.affectedRows} new records`);
+                  nextCall(null, `Successfully inserted ${result.affectedRows} new records`);
+              });
+          })
+          .catch(error => {
+              console.error('Error processing data:', error);
+              nextCall(error);
+          });
+      }
+  ], function(err, response) {
+      if (err) {
+          return res.status(err.code || 400).json({
+              status_api: err.code || 400,
+              message: (err && err.message) || "Something went wrong",
+              data: err.data || null
+          });
+      }
+      return res.status(200).json({
+          status_api: 200,
+          message: "Instruments data refreshed successfully",
+          data: response
+      });
+  });
+});
+
+
 setInterval(function setup() {
   let sqlsss = "SELECT * FROM app_data";
   connection.query(sqlsss, async function (err, appData) {
