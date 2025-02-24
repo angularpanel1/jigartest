@@ -377,8 +377,10 @@ router.get('/instruments-get-data', function (req, res) {
             if (req.query.offset) {
                 // If offset is provided, create a range query
                 const offset = parseFloat(req.query.offset);
-                const lowerBound = strikePrice - (strikePrice * offset / 100);
-                const upperBound = strikePrice + (strikePrice * offset / 100);
+                const lowerBound = strikePrice - offset;
+                const upperBound = strikePrice + offset ;
+                // const lowerBound = strikePrice - (strikePrice * offset / 100);
+                // const upperBound = strikePrice + (strikePrice * offset / 100);
                 
                 sqlQuery += " AND strike_price BETWEEN ? AND ?";
                 queryParams.push(lowerBound);
