@@ -15,6 +15,10 @@ var config = require('../config/global');
 var UpstoxClient = require("upstox-js-sdk");
 const WebSocket = require("ws").WebSocket;
 
+const zlib = require('zlib');
+const util = require('util');
+const gunzip = util.promisify(zlib.gunzip);
+
 /* GET home page. */
 router.get('/', function (req, res, next) {
   res.send('respond with a resource');
@@ -310,6 +314,39 @@ router.get('/tradedata', function (req, res) {
   });
 });
 
+function filterTradingData(data, monthYearPattern) {
+  // Convert monthYearPattern (e.g., "03/25") to regex-friendly format
+  const [month, year] = monthYearPattern.split('/');
+  const monthNames = {
+      '01': 'JAN',
+      '02': 'FEB',
+      '03': 'MAR',
+      '04': 'APR',
+      '05': 'MAY',
+      '06': 'JUN',
+      '07': 'JUL',
+      '08': 'AUG',
+      '09': 'SEP',
+      '10': 'OCT',
+      '11': 'NOV',
+      '12': 'DEC'
+  };
+
+  // Get the month name for the pattern
+  const monthName = monthNames[month.padStart(2, '0')];
+  
+  // Filter the data
+  return data.filter(item => {
+      // Extract month and year from trading_symbol
+      // Format example: "NIFTY 23800 PE 13 MAR 25"
+      const symbolParts = item.trading_symbol.split(' ');
+      const symbolMonth = symbolParts[symbolParts.length - 2]; // Get month part
+      const symbolYear = symbolParts[symbolParts.length - 1];  // Get year part
+      
+      return symbolMonth === monthName && symbolYear === year;
+  });
+}
+
 /** get Instruments apis with filters */
 router.get('/instruments-get-data', function (req, res) {
   async.waterfall([
@@ -329,30 +366,52 @@ router.get('/instruments-get-data', function (req, res) {
               queryParams.push(req.query.instrument_type);
           }
 
+          // if (req.query.strike_price) {
+          //     sqlQuery += " AND strike_price = ?";
+          //     queryParams.push(parseFloat(req.query.strike_price));
+          // }
+
           if (req.query.strike_price) {
-              sqlQuery += " AND strike_price = ?";
-              queryParams.push(parseFloat(req.query.strike_price));
-          }
+            const strikePrice = parseFloat(req.query.strike_price);
+            
+            if (req.query.offset) {
+                // If offset is provided, create a range query
+                const offset = parseFloat(req.query.offset);
+                const lowerBound = strikePrice - (strikePrice * offset / 100);
+                const upperBound = strikePrice + (strikePrice * offset / 100);
+                
+                sqlQuery += " AND strike_price BETWEEN ? AND ?";
+                queryParams.push(lowerBound);
+                queryParams.push(upperBound);
+                
+            } else {
+                // If no offset, use exact match
+                sqlQuery += " AND strike_price = ?";
+                queryParams.push(strikePrice);
+            }
+        }
 
           // Execute query with filters
           connection.query(sqlQuery, queryParams, async function (err, instrumentData) {
               if (err) {
-                  console.error('Error fetching instrument data:', err);
                   await teleStockMsg("Instrument data fetch api failed");
                   await logUser("Instrument data fetch api failed");
                   return nextCall(err);
               }
 
-              // Log success message
-              console.log(`Retrieved ${instrumentData.length} records`);
-              
               // Return the filtered data
-              // nextCall(null, instrumentData);
+              let filteredData;
+              if(req.query.date){
+                 filteredData = filterTradingData(instrumentData, req.query.date);
+              }else{
+                filteredData = instrumentData;
+              }
+
               // Return the formatted response
               nextCall(null, {
               status: "success",
               data: {
-                  candles: instrumentData // Wrapping the array inside `candles`
+                  candles: filteredData // Wrapping the array inside `candles`
               }
               });
           });
