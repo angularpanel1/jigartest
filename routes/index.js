@@ -465,10 +465,10 @@ router.get('/instruments-data', function (req, res) {
               const jsonData = JSON.parse(unzippedData.toString());
               
               // Filter data for NSE_FO segment and INDEX underlying_type
-              const filteredData = jsonData.filter(item => 
-                  item.segment === "NSE_FO" && 
-                  item.underlying_type === "INDEX"
-              );
+              // const filteredData = jsonData.filter(item => 
+              //     item.segment === "NSE_FO" && 
+              //     item.underlying_type === "INDEX"
+              // );
 
               // Prepare values for bulk insert
               const values = filteredData.map(item => [
