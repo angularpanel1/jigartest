@@ -470,6 +470,8 @@ router.get('/instruments-data', function (req, res) {
               //     item.underlying_type === "INDEX"
               // );
 
+            const filteredData = jsonData;
+
               // Prepare values for bulk insert
               const values = filteredData.map(item => [
                   item.weekly,
