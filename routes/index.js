@@ -348,127 +348,14 @@ function filterTradingData(data, monthYearPattern) {
 }
 
 /** get Instruments apis with filters */
-// router.get('/instruments-get-data', function (req, res) {
-//   async.waterfall([
-//       function (nextCall) {
-//           // Start with base query
-//           let sqlQuery = "SELECT * FROM instrument_data WHERE 1=1";
-//           let queryParams = [];
-
-//           // Add filters based on query parameters
-//           if (req.query.asset_symbol) {
-//               sqlQuery += " AND asset_symbol = ?";
-//               queryParams.push(req.query.asset_symbol);
-//           }
-
-//           if (req.query.instrument_type) {
-//               sqlQuery += " AND instrument_type = ?";
-//               queryParams.push(req.query.instrument_type);
-//           }
-
-//           // if (req.query.strike_price) {
-//           //     sqlQuery += " AND strike_price = ?";
-//           //     queryParams.push(parseFloat(req.query.strike_price));
-//           // }
-
-//           if (req.query.strike_price) {
-//             const strikePrice = parseFloat(req.query.strike_price);
-            
-//             if (req.query.offset) {
-//                 // If offset is provided, create a range query
-//                 const offset = parseFloat(req.query.offset);
-//                 const lowerBound = strikePrice - offset;
-//                 const upperBound = strikePrice + offset ;
-//                 // const lowerBound = strikePrice - (strikePrice * offset / 100);
-//                 // const upperBound = strikePrice + (strikePrice * offset / 100);
-                
-//                 sqlQuery += " AND strike_price BETWEEN ? AND ?";
-//                 queryParams.push(lowerBound);
-//                 queryParams.push(upperBound);
-                
-//             } else {
-//                 // If no offset, use exact match
-//                 sqlQuery += " AND strike_price = ?";
-//                 queryParams.push(strikePrice);
-//             }
-//         }
-
-//           // Execute query with filters
-//           connection.query(sqlQuery, queryParams, async function (err, instrumentData) {
-//               if (err) {
-//                   await teleStockMsg("Instrument data fetch api failed");
-//                   await logUser("Instrument data fetch api failed");
-//                   return nextCall(err);
-//               }
-
-//               // Return the filtered data
-//               let filteredData;
-//               if(req.query.date){
-//                  filteredData = filterTradingData(instrumentData, req.query.date);
-//               }else{
-//                 filteredData = instrumentData;
-//               }
-
-//               // Return the formatted response
-//               nextCall(null, {
-//               status: "success",
-//               data: {
-//                   candles: filteredData // Wrapping the array inside `candles`
-//               }
-//               });
-//           });
-//       }
-//   ], function (err, response) {
-//       if (err) {
-//           return res.status(err.code || 400).json({
-//               status_api: err.code || 400,
-//               message: (err && err.message) || "Something went wrong",
-//               data: err.data || null
-//           });
-//       }
-//       return res.status(200).json({
-//           status_api: 200,
-//           message: "Instruments data fetched successfully",
-//           data: response
-//           // filters_applied: req.query // Include what filters were applied
-//       });
-//   });
-// });
-
-/** get Instruments apis with filters */
 router.get('/instruments-get-data', function (req, res) {
   async.waterfall([
-      function (nextCall) {
-          if (req.query.redownload === 'true') {
-              // Call the instruments-data API logic
-              axios.get(`https://stockbot-wkri.onrender.com/instruments-data`)
-                  .then(response => {
-                      if (response.data.status_api === 200) {
-                          console.log("Data redownloaded successfully");
-                          nextCall(null); // Proceed with fetching data
-                      } else {
-                          return nextCall({
-                              code: 500,
-                              message: "Redownload failed"
-                          });
-                      }
-                  })
-                  .catch(err => {
-                      console.error("Error redownloading data:", err);
-                      return nextCall({
-                          code: 500,
-                          message: "Redownload error occurred"
-                      });
-                  });
-          } else {
-              nextCall(null); // Skip redownload logic if not requested
-          }
-      },
       function (nextCall) {
           // Start with base query
           let sqlQuery = "SELECT * FROM instrument_data WHERE 1=1";
           let queryParams = [];
 
+          // Add filters based on query parameters
           if (req.query.asset_symbol) {
               sqlQuery += " AND asset_symbol = ?";
               queryParams.push(req.query.asset_symbol);
@@ -480,38 +367,47 @@ router.get('/instruments-get-data', function (req, res) {
           }
 
           if (req.query.strike_price) {
-              const strikePrice = parseFloat(req.query.strike_price);
+            const strikePrice = parseFloat(req.query.strike_price);
+            
+            if (req.query.offset) {
+                // If offset is provided, create a range query
+                const offset = parseFloat(req.query.offset);
+                const lowerBound = strikePrice - offset;
+                const upperBound = strikePrice + offset ;
+                
+                sqlQuery += " AND strike_price BETWEEN ? AND ?";
+                queryParams.push(lowerBound);
+                queryParams.push(upperBound);
+                
+            } else {
+                // If no offset, use exact match
+                sqlQuery += " AND strike_price = ?";
+                queryParams.push(strikePrice);
+            }
+        }
 
-              if (req.query.offset) {
-                  const offset = parseFloat(req.query.offset);
-                  const lowerBound = strikePrice - offset;
-                  const upperBound = strikePrice + offset;
-                  sqlQuery += " AND strike_price BETWEEN ? AND ?";
-                  queryParams.push(lowerBound);
-                  queryParams.push(upperBound);
-              } else {
-                  sqlQuery += " AND strike_price = ?";
-                  queryParams.push(strikePrice);
-              }
-          }
-
+          // Execute query with filters
           connection.query(sqlQuery, queryParams, async function (err, instrumentData) {
               if (err) {
-                  await teleStockMsg("Instrument data fetch API failed");
-                  await logUser("Instrument data fetch API failed");
+                  await teleStockMsg("Instrument data fetch api failed");
+                  await logUser("Instrument data fetch api failed");
                   return nextCall(err);
               }
 
+              // Return the filtered data
               let filteredData;
-              if (req.query.date) {
-                  filteredData = filterTradingData(instrumentData, req.query.date);
-              } else {
-                  filteredData = instrumentData;
+              if(req.query.date){
+                 filteredData = filterTradingData(instrumentData, req.query.date);
+              }else{
+                filteredData = instrumentData;
               }
 
+              // Return the formatted response
               nextCall(null, {
-                  status: "success",
-                  data: { candles: filteredData }
+              status: "success",
+              data: {
+                  candles: filteredData // Wrapping the array inside `candles`
+              }
               });
           });
       }
@@ -523,12 +419,10 @@ router.get('/instruments-get-data', function (req, res) {
               data: err.data || null
           });
       }
-
       return res.status(200).json({
           status_api: 200,
           message: "Instruments data fetched successfully",
-          data: response,
-          filters_applied: req.query
+          data: response
       });
   });
 });
@@ -550,20 +444,17 @@ router.get('/instruments-data', function (req, res) {
           });
       },
       // Step 2: Fetch and process new data
-      async function(nextCall) {
-
-        const response = await axios({
-          method: 'get',
-          url: 'https://assets.upstox.com/market-quote/instruments/exchange/complete.json.gz',
-          responseType: 'stream' // Stream data instead of loading entire content in memory
-      });
-
-      let data = '';
-      response.data
-          .pipe(zlib.createGunzip()) // Unzip while streaming
-          .on('data', chunk => (data += chunk.toString()))
-          .on('end', () => {
-              const jsonData = JSON.parse(data);
+      function(nextCall) {
+          axios({
+              method: 'get',
+              url: 'https://assets.upstox.com/market-quote/instruments/exchange/complete.json.gz',
+              responseType: 'arraybuffer'
+          })
+          .then(response => {
+              return gunzip(response.data);
+          })
+          .then(unzippedData => {
+              const jsonData = JSON.parse(unzippedData.toString());
               
               // Filter data for NSE_FO segment and INDEX underlying_type
               // const filteredData = jsonData.filter(item => 
@@ -664,7 +555,6 @@ router.get('/instruments-data', function (req, res) {
       });
   });
 });
-
 setInterval(function setup() {
   let sqlsss = "SELECT * FROM app_data";
   connection.query(sqlsss, async function (err, appData) {
