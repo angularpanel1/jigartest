@@ -550,17 +550,20 @@ router.get('/instruments-data', function (req, res) {
           });
       },
       // Step 2: Fetch and process new data
-      function(nextCall) {
-          axios({
-              method: 'get',
-              url: 'https://assets.upstox.com/market-quote/instruments/exchange/complete.json.gz',
-              responseType: 'arraybuffer'
-          })
-          .then(response => {
-              return gunzip(response.data);
-          })
-          .then(unzippedData => {
-              const jsonData = JSON.parse(unzippedData.toString());
+      async function(nextCall) {
+
+        const response = await axios({
+          method: 'get',
+          url: 'https://assets.upstox.com/market-quote/instruments/exchange/complete.json.gz',
+          responseType: 'stream' // Stream data instead of loading entire content in memory
+      });
+
+      let data = '';
+      response.data
+          .pipe(zlib.createGunzip()) // Unzip while streaming
+          .on('data', chunk => (data += chunk.toString()))
+          .on('end', () => {
+              const jsonData = JSON.parse(data);
               
               // Filter data for NSE_FO segment and INDEX underlying_type
               // const filteredData = jsonData.filter(item => 
