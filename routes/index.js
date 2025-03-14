@@ -429,8 +429,8 @@ router.get('/instruments-get-data', function (req, res) {
       return res.status(200).json({
           status_api: 200,
           message: "Instruments data fetched successfully",
-          data: response,
-          filters_applied: req.query // Include what filters were applied
+          data: response
+          // filters_applied: req.query // Include what filters were applied
       });
   });
 });
