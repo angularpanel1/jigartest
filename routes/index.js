@@ -356,6 +356,12 @@ router.get('/instruments-get-data', function (req, res) {
           let queryParams = [];
 
           // Add filters based on query parameters
+
+           if (req.query.segment) {
+              sqlQuery += " AND segment = ?";
+              queryParams.push(req.query.segment);
+          }
+        
           if (req.query.asset_symbol) {
               sqlQuery += " AND asset_symbol = ?";
               queryParams.push(req.query.asset_symbol);
