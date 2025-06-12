@@ -877,6 +877,145 @@ router.get('/buySellApi', function (req, res) {
   });
 });
 
+router.get('/gttBuySellApi', function (req, res) {
+  async.waterfall([
+    function (nextCall) {
+      let sqlsss = "SELECT * FROM plateform_login";
+      connection.query(sqlsss, async function (err, appData) {
+        let finalDate = moment.tz('Asia/Kolkata').format('HH:mm ss:SSS');
+        let finalDateTime = moment.tz('Asia/Kolkata').format('DD-MM-YYYY HH:mm ss:SSS');
+        
+        if (err) {
+          await teleStockMsg("App data fetch api failed");
+          await logUser("App data fetch api failed");
+        } else {
+          if (req.query.live_trade == 'true' || req.query.live_trade == 'TRUE') {
+            let requestHeaders1 = {
+              "accept": "application/json",
+              "Content-Type": "application/json",
+              "Api-Version": "2.0",
+              "Authorization": "Bearer " + appData[0].access_token
+            }
+
+            // Get base price from the request (current price)
+            const basePrice = Number(req.query.price);
+
+            // Calculate take profit (TP) price based on provided parameters
+            let targetTriggerPrice;
+            if (req.query.tp_name === 'percent') {
+              targetTriggerPrice = basePrice + (basePrice * Number(req.query.tp_value) / 100);  // Calculate % above the base price
+            } else if (req.query.tp_name === 'price') {
+              targetTriggerPrice = Number(req.query.tp_value);  // Use the exact value provided for TP
+            }
+
+            // Calculate stop loss (SL) price based on provided parameters
+            let stoplossTriggerPrice;
+            if (req.query.sl_name === 'percent') {
+              stoplossTriggerPrice = basePrice - (basePrice * Number(req.query.sl_value) / 100);  // Calculate % below the base price
+            } else if (req.query.sl_name === 'price') {
+              stoplossTriggerPrice = Number(req.query.sl_value);  // Use the exact value provided for SL
+            }
+
+            // Adjust ENTRY trigger for Buy or Sell orders
+            let entryTriggerPrice = (req.query.transaction_type === 'BUY') ? basePrice : basePrice;
+
+            // If it's a SELL order, reverse TP and SL calculations
+            if (req.query.transaction_type === 'SELL') {
+              targetTriggerPrice = (req.query.tp_name === 'percent') ? basePrice - (basePrice * Number(req.query.tp_value) / 100) : Number(req.query.tp_value);
+              stoplossTriggerPrice = (req.query.sl_name === 'percent') ? basePrice + (basePrice * Number(req.query.sl_value) / 100) : Number(req.query.sl_value);
+            }
+
+            let gttOrderData = {
+              'type': 'MULTIPLE',  // Multiple strategy type
+              'quantity': Number(req.query.quantity),
+              'product': req.query.product,  // 'D' for delivery, 'M' for margin
+              'instrument_token': req.query.instrument_token,
+              'transaction_type': req.query.transaction_type,  // 'BUY' or 'SELL'
+              'rules': [
+                {
+                  "strategy": "ENTRY",  // Entry rule
+                  "trigger_type": "BELOW",  // Below price trigger for Buy and Sell
+                  "trigger_price": entryTriggerPrice  // Entry price
+                },
+                {
+                  "strategy": "TARGET",  // Target rule
+                  "trigger_type": "IMMEDIATE",  // Immediate execution
+                  "trigger_price": targetTriggerPrice  // Calculated target price
+                },
+                {
+                  "strategy": "STOPLOSS",  // Stop loss rule
+                  "trigger_type": "IMMEDIATE",  // Immediate execution
+                  "trigger_price": stoplossTriggerPrice  // Calculated stoploss price
+                }
+              ]
+            }
+
+            axios.post('https://api.upstox.com/v3/order/gtt/place', gttOrderData, { headers: requestHeaders1 })
+              .then(async (response) => {
+                let finalData = response.data;
+                if (finalData.status && finalData.status == "error") {
+                  finalData.client_secret = appData[0].client_secret;
+                  finalData.status1 = "logout";
+                  await updateLoginUser(finalData);
+                  await teleStockMsg("<b>SS</b> GTT Order failed " + finalDate);
+                  await logUser("GTT Order failed");
+                  return nextCall({
+                    "message": "something went wrong",
+                    "data": finalData
+                  });
+                } else {
+                  req.query.order_id = finalData.data.gtt_order_ids[0];
+                  req.query.user_id = appData[0].user_id;
+                // await orderBookDb(req.query);
+
+                  let html = '<b>Account Id : </b> Sonal <b>[Upstock]</b> \n\n' +
+                    '🔀 <b>Direction : </b> <b> ' + req.query.transaction_type + '</b>' + (req.query.transaction_type == 'BUY' ? '🟢' : '🔴') + '\n' +
+                    '🌐 <b>Script : </b> ' + req.query.instrument_token + '\n' +
+                    '💰 <b>Price : ₹</b> ' + req.query.price + '\n' +
+                    '🚫 <b>Qty : </b> ' + req.query.quantity + '\n' +
+                    '📈 <b>Mode : </b> ' + req.query.order_type + '\n' +
+                    '👉 <b>Trigger Price : </b> ' + req.query.trigger_price + '\n' +
+                    '🕙 <b>Trade Time : </b> ' + finalDateTime + '\n' +
+                    '📋 <b>Order Id : </b> ' + req.query.order_id + '\n';
+
+                  await teleStockMsg(html);
+                  await teleAnotherStockMsg(html);
+                  await logUser("GTT Order placed successfully");
+                  nextCall(null, finalData);
+                }
+              })
+              .catch(async (err) => {
+                await teleStockMsg("<b>SS</b> GTT Order failed " + finalDate);
+                await logUser("GTT Order failed");
+                return nextCall({
+                  "message": "something went wrong",
+                  "data": err
+                });
+              });
+          } else {
+            await teleStockMsg("<b>SS</b> GTT API fetched but no order placed");
+            await logUser("GTT API fetched but no order placed");
+            nextCall(null, req.query);
+          }
+        }
+      });
+    },
+  ], function (err, response) {
+    if (err) {
+      return res.send({
+        status_api: err.code ? err.code : 400,
+        message: (err && err.message) || "something went wrong",
+        data: err.data ? err.data : null
+      });
+    }
+    return res.send({
+      status_api: 200,
+      message: "GTT Order successfully placed",
+      data: response
+    });
+  });
+});
+
 /** Order modify apis */
 router.get('/orderModifyApi', function (req, res) {
   async.waterfall([
