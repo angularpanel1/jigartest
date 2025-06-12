@@ -906,6 +906,8 @@ router.get('/gttBuySellApi', function (req, res) {
               targetTriggerPrice = basePrice + (basePrice * Number(req.query.tp_value) / 100);  // Calculate % above the base price
             } else if (req.query.tp_name === 'price') {
               targetTriggerPrice = Number(req.query.tp_value);  // Use the exact value provided for TP
+            }else{
+              targetTriggerPrice = basePrice + Number(req.query.tp_value);  // Use the exact value provided for TP
             }
 
             // Calculate stop loss (SL) price based on provided parameters
@@ -914,6 +916,8 @@ router.get('/gttBuySellApi', function (req, res) {
               stoplossTriggerPrice = basePrice - (basePrice * Number(req.query.sl_value) / 100);  // Calculate % below the base price
             } else if (req.query.sl_name === 'price') {
               stoplossTriggerPrice = Number(req.query.sl_value);  // Use the exact value provided for SL
+            }else{
+              stoplossTriggerPrice = basePrice - Number(req.query.sl_value);  // Use the exact value provided for TP
             }
 
             // Adjust ENTRY trigger for Buy or Sell orders
@@ -921,8 +925,8 @@ router.get('/gttBuySellApi', function (req, res) {
 
             // If it's a SELL order, reverse TP and SL calculations
             if (req.query.transaction_type === 'SELL') {
-              targetTriggerPrice = (req.query.tp_name === 'percent') ? basePrice - (basePrice * Number(req.query.tp_value) / 100) : Number(req.query.tp_value);
-              stoplossTriggerPrice = (req.query.sl_name === 'percent') ? basePrice + (basePrice * Number(req.query.sl_value) / 100) : Number(req.query.sl_value);
+              targetTriggerPrice = (req.query.tp_name === 'percent') ? basePrice - (basePrice * Number(req.query.tp_value) / 100) : ((req.query.tp_name === 'price') ? Number(req.query.tp_value) : basePrice - Number(req.query.tp_value));
+              stoplossTriggerPrice = (req.query.sl_name === 'percent') ? basePrice + (basePrice * Number(req.query.sl_value) / 100) : ((req.query.sl_name === 'price') ? Number(req.query.sl_value) : basePrice + Number(req.query.sl_value));
             }
 
             let gttOrderData = {
