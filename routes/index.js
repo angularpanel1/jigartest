@@ -934,7 +934,7 @@ router.get('/gttBuySellApi', function (req, res) {
               'rules': [
                 {
                   "strategy": "ENTRY",  // Entry rule
-                  "trigger_type": "BELOW",  // Below price trigger for Buy and Sell
+                  "trigger_type": "IMMEDIATE",  // Below price trigger for Buy and Sell
                   "trigger_price": entryTriggerPrice  // Entry price
                 },
                 {
