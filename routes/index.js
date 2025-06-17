@@ -1020,6 +1020,76 @@ router.get('/gttBuySellApi', function (req, res) {
   });
 });
 
+/** Gtt Order cancel apis */
+router.get('/gttOrderCancel', function (req, res) {
+  async.waterfall([
+    function (nextCall) {
+      let sqlsss = "SELECT * FROM plateform_login";
+      connection.query(sqlsss, async function (err, appData) {
+        if (err) {
+          await teleStockMsg("App data fetch api failed");
+          await logUser("App data fetch api failed");
+        } else {
+          let requestHeaders1 = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            "Authorization": "Bearer " + appData[0].access_token
+          }
+
+          const data = {
+            gtt_order_id: req.query.order_id
+          };
+
+          request({
+            uri: "https://api.upstox.com/v3/order/gtt/cancel",
+            method: "DELETE",
+            body: qs.stringify(data),
+            headers: requestHeaders1
+          }, async (err, response, success) => {
+            if (err) {
+              await teleStockMsg("Gtt Order cancel featch failed");
+              await logUser("Gtt Order cancel featch failed");
+              return nextCall({
+                "message": "something went wrong",
+                "data": null
+              });
+            } else {
+              let finalData = JSON.parse(success);
+              if (finalData.status && finalData.status == "error") {
+                finalData.client_secret = appData[0].client_secret;
+                finalData.status1 = "logout";
+                await updateLoginUser(finalData)
+                await teleStockMsg("Gtt Order cancel featch failed")
+                await logUser("Gtt Order cancel featch failed")
+                return nextCall({
+                  "message": "something went wrong",
+                  "data": finalData
+                });
+              } else {
+                await logUser("Gtt Order book list candle data featch successfully")
+                nextCall(null, finalData);
+              }
+            }
+          })
+        }
+      })
+    },
+  ], function (err, response) {
+    if (err) {
+      return res.send({
+        status_api: err.code ? err.code : 400,
+        message: (err && err.message) || "someyhing went wrong",
+        data: err.data ? err.data : null
+      });
+    }
+    return res.send({
+      status_api: 200,
+      message: "Order cancel successfully",
+      data: response
+    });
+  });
+});
+
 /** Order modify apis */
 router.get('/orderModifyApi', function (req, res) {
   async.waterfall([
