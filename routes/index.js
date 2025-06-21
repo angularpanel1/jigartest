@@ -1479,7 +1479,7 @@ router.get('/getHolding', function (req, res) {
           }
 
           request({
-            uri: "https://api-v2.upstox.com/portfolio/long-term-holdings",
+            uri: "https://api.upstox.com/v2/portfolio/long-term-holdings",
             method: "GET",
             headers: requestHeaders1
           }, async (err, response, success) => {
@@ -1522,6 +1522,444 @@ router.get('/getHolding', function (req, res) {
     return res.send({
       status_api: 200,
       message: "getHolding get successfully",
+      data: response
+    });
+  });
+});
+
+/** getFundsAndMargin apis */
+router.get('/getFundsAndMargin', function (req, res) {
+  async.waterfall([
+    function (nextCall) {
+      let sqlsss = "SELECT * FROM plateform_login";
+      connection.query(sqlsss, async function (err, appData) {
+        if (err) {
+          await teleStockMsg("App data fetch api failed");
+          await logUser("App data fetch api failed");
+        } else {
+          let requestHeaders1 = {
+            "accept": "application/json",
+            "Api-Version": "2.0",
+            "Authorization": "Bearer " + appData[0].access_token
+          }
+
+            // Base URL
+          let apiUrl = "https://api.upstox.com/v2/user/get-funds-and-margin";
+          
+          // Append segment if provided
+          if (req.query.segment) {
+            apiUrl += `?segment=${req.query.segment}`;
+          }
+
+          request({
+            uri: apiUrl,
+            method: "GET",
+            headers: requestHeaders1
+          }, async (err, response, success) => {
+            if (err) {
+              await teleStockMsg("getFundsAndMargin data featch failed");
+              await logUser("getFundsAndMargin data featch failed");
+              return nextCall({
+                "message": "something went wrong",
+                "data": null
+              });
+            } else {
+              let finalData = JSON.parse(success);
+              if (finalData.status && finalData.status == "error") {
+                finalData.client_secret = appData[0].client_secret;
+                finalData.status1 = "logout";
+                await updateLoginUser(finalData)
+                await teleStockMsg("getFundsAndMargin data featch failed")
+                await logUser("getFundsAndMargin data featch failed")
+                return nextCall({
+                  "message": "something went wrong",
+                  "data": finalData
+                });
+              } else {
+                await logUser("getFundsAndMargin data featch successfully")
+                nextCall(null, finalData);
+              }
+            }
+          })
+        }
+      })
+    },
+  ], function (err, response) {
+    if (err) {
+      return res.send({
+        status_api: err.code ? err.code : 400,
+        message: (err && err.message) || "someyhing went wrong",
+        data: err.data ? err.data : null
+      });
+    }
+    return res.send({
+      status_api: 200,
+      message: "getFundsAndMargin get successfully",
+      data: response
+    });
+  });
+});
+
+/** getOptionGreeks apis */
+router.get('/getOptionGreeks', function (req, res) {
+  async.waterfall([
+    function (nextCall) {
+      let sqlsss = "SELECT * FROM plateform_login";
+      connection.query(sqlsss, async function (err, appData) {
+        if (err) {
+          await teleStockMsg("App data fetch api failed");
+          await logUser("App data fetch api failed");
+        } else {
+          let requestHeaders1 = {
+            "accept": "application/json",
+            "Api-Version": "2.0",
+            "Authorization": "Bearer " + appData[0].access_token
+          }
+
+            // Base URL
+          let apiUrl = "https://api.upstox.com/v3/market-quote/option-greek";
+          
+          // Append instrument_key if provided
+          if (req.query.instrument_key) {
+            apiUrl += `?instrument_key=${req.query.instrument_key}`;
+          }
+
+          request({
+            uri: apiUrl,
+            method: "GET",
+            headers: requestHeaders1
+          }, async (err, response, success) => {
+            if (err) {
+              await teleStockMsg("getOptionGreeks data featch failed");
+              await logUser("getOptionGreeks data featch failed");
+              return nextCall({
+                "message": "something went wrong",
+                "data": null
+              });
+            } else {
+              let finalData = JSON.parse(success);
+              if (finalData.status && finalData.status == "error") {
+                finalData.client_secret = appData[0].client_secret;
+                finalData.status1 = "logout";
+                await updateLoginUser(finalData)
+                await teleStockMsg("getOptionGreeks data featch failed")
+                await logUser("getOptionGreeks data featch failed")
+                return nextCall({
+                  "message": "something went wrong",
+                  "data": finalData
+                });
+              } else {
+                await logUser("getOptionGreeks data featch successfully")
+                nextCall(null, finalData);
+              }
+            }
+          })
+        }
+      })
+    },
+  ], function (err, response) {
+    if (err) {
+      return res.send({
+        status_api: err.code ? err.code : 400,
+        message: (err && err.message) || "someyhing went wrong",
+        data: err.data ? err.data : null
+      });
+    }
+    return res.send({
+      status_api: 200,
+      message: "getOptionGreeks get successfully",
+      data: response
+    });
+  });
+});
+
+/** getPutCallOptionChain apis */
+router.get('/getPutCallOptionChain', function (req, res) {
+  async.waterfall([
+    function (nextCall) {
+      let sqlsss = "SELECT * FROM plateform_login";
+      connection.query(sqlsss, async function (err, appData) {
+        if (err) {
+          await teleStockMsg("App data fetch api failed");
+          await logUser("App data fetch api failed");
+        } else {
+          let requestHeaders1 = {
+            "accept": "application/json",
+            "Api-Version": "2.0",
+            "Authorization": "Bearer " + appData[0].access_token
+          }
+
+            // Base URL
+          let apiUrl = "https://api.upstox.com/v2/option/chain";
+          
+          // Append instrument_key if provided
+          if (req.query.instrument_key && req.query.expiry_date) {
+            apiUrl += `?instrument_key=${req.query.instrument_key}&expiry_date=${req.query.expiry_date}`;
+          }
+
+          request({
+            uri: apiUrl,
+            method: "GET",
+            headers: requestHeaders1
+          }, async (err, response, success) => {
+            if (err) {
+              await teleStockMsg("getPutCallOptionChain data featch failed");
+              await logUser("getPutCallOptionChain data featch failed");
+              return nextCall({
+                "message": "something went wrong",
+                "data": null
+              });
+            } else {
+              let finalData = JSON.parse(success);
+              if (finalData.status && finalData.status == "error") {
+                finalData.client_secret = appData[0].client_secret;
+                finalData.status1 = "logout";
+                await updateLoginUser(finalData)
+                await teleStockMsg("getPutCallOptionChain data featch failed")
+                await logUser("getPutCallOptionChain data featch failed")
+                return nextCall({
+                  "message": "something went wrong",
+                  "data": finalData
+                });
+              } else {
+                await logUser("getPutCallOptionChain data featch successfully")
+                nextCall(null, finalData);
+              }
+            }
+          })
+        }
+      })
+    },
+  ], function (err, response) {
+    if (err) {
+      return res.send({
+        status_api: err.code ? err.code : 400,
+        message: (err && err.message) || "someyhing went wrong",
+        data: err.data ? err.data : null
+      });
+    }
+    return res.send({
+      status_api: 200,
+      message: "getPutCallOptionChain get successfully",
+      data: response
+    });
+  });
+});
+
+/** getMarginDetails apis */
+router.get('/getMarginDetails', function (req, res) {
+  async.waterfall([
+    function (nextCall) {
+      let sqlsss = "SELECT * FROM plateform_login";
+      connection.query(sqlsss, async function (err, appData) {
+        if (err) {
+          await teleStockMsg("App data fetch api failed");
+          await logUser("App data fetch api failed");
+        } else {
+          let requestHeaders1 = {
+            "accept": "application/json",
+            "Api-Version": "2.0",
+            "Authorization": "Bearer " + appData[0].access_token,
+            "Content-Type": "application/json"
+          }
+
+          const data = {
+            instruments: [
+              {
+                instrument_key: req.query.instrument_key,
+                quantity: req.query.quantity,
+                transaction_type: req.query.transaction_type,
+                product: req.query.product
+              }
+            ]
+          };
+
+          // Base URL
+          let apiUrl = "https://api.upstox.com/v2/charges/margin";
+          
+          request({
+            uri: apiUrl,
+            method: "POST",
+            body: qs.stringify(data),
+            headers: requestHeaders1
+          }, async (err, response, success) => {
+            if (err) {
+              await teleStockMsg("getMarginDetails data featch failed");
+              await logUser("getMarginDetails data featch failed");
+              return nextCall({
+                "message": "something went wrong",
+                "data": null
+              });
+            } else {
+              let finalData = JSON.parse(success);
+              if (finalData.status && finalData.status == "error") {
+                finalData.client_secret = appData[0].client_secret;
+                finalData.status1 = "logout";
+                await updateLoginUser(finalData)
+                await teleStockMsg("getMarginDetails data featch failed")
+                await logUser("getMarginDetails data featch failed")
+                return nextCall({
+                  "message": "something went wrong",
+                  "data": finalData
+                });
+              } else {
+                await logUser("getMarginDetails data featch successfully")
+                nextCall(null, finalData);
+              }
+            }
+          })
+        }
+      })
+    },
+  ], function (err, response) {
+    if (err) {
+      return res.send({
+        status_api: err.code ? err.code : 400,
+        message: (err && err.message) || "someyhing went wrong",
+        data: err.data ? err.data : null
+      });
+    }
+    return res.send({
+      status_api: 200,
+      message: "getMarginDetails get successfully",
+      data: response
+    });
+  });
+});
+
+/** getBrokerageDetails apis */
+router.get('/getBrokerageDetails', function (req, res) {
+  async.waterfall([
+    function (nextCall) {
+      let sqlsss = "SELECT * FROM plateform_login";
+      connection.query(sqlsss, async function (err, appData) {
+        if (err) {
+          await teleStockMsg("App data fetch api failed");
+          await logUser("App data fetch api failed");
+        } else {
+          let requestHeaders1 = {
+            "accept": "application/json",
+            "Api-Version": "2.0",
+            "Authorization": "Bearer " + appData[0].access_token
+          }
+
+            // Base URL
+          let apiUrl = "https://api.upstox.com/v2/charges/brokerage";
+          
+          // Append instrument_token if provided
+          if (req.query.instrument_token && req.query.quantity && req.query.product && req.query.transaction_type && req.query.price) {
+            apiUrl += `?instrument_token=${req.query.instrument_token}&quantity=${req.query.quantity}&product=${req.query.product}&transaction_type=${req.query.transaction_type}&price=${req.query.price}`;
+          }
+
+          request({
+            uri: apiUrl,
+            method: "GET",
+            headers: requestHeaders1
+          }, async (err, response, success) => {
+            if (err) {
+              await teleStockMsg("getBrokerageDetails data featch failed");
+              await logUser("getBrokerageDetails data featch failed");
+              return nextCall({
+                "message": "something went wrong",
+                "data": null
+              });
+            } else {
+              let finalData = JSON.parse(success);
+              if (finalData.status && finalData.status == "error") {
+                finalData.client_secret = appData[0].client_secret;
+                finalData.status1 = "logout";
+                await updateLoginUser(finalData)
+                await teleStockMsg("getBrokerageDetails data featch failed")
+                await logUser("getBrokerageDetails data featch failed")
+                return nextCall({
+                  "message": "something went wrong",
+                  "data": finalData
+                });
+              } else {
+                await logUser("getBrokerageDetails data featch successfully")
+                nextCall(null, finalData);
+              }
+            }
+          })
+        }
+      })
+    },
+  ], function (err, response) {
+    if (err) {
+      return res.send({
+        status_api: err.code ? err.code : 400,
+        message: (err && err.message) || "someyhing went wrong",
+        data: err.data ? err.data : null
+      });
+    }
+    return res.send({
+      status_api: 200,
+      message: "getBrokerageDetails get successfully",
+      data: response
+    });
+  });
+});
+
+/** logout apis */
+router.get('/logout', function (req, res) {
+  async.waterfall([
+    function (nextCall) {
+      let sqlsss = "SELECT * FROM plateform_login";
+      connection.query(sqlsss, async function (err, appData) {
+        if (err) {
+          await teleStockMsg("App data fetch api failed");
+          await logUser("App data fetch api failed");
+        } else {
+          let requestHeaders1 = {
+            "accept": "application/json",
+            "Api-Version": "2.0",
+            "Authorization": "Bearer " + appData[0].access_token
+          }
+
+          request({
+            uri: "https://api.upstox.com/v2/logout",
+            method: "DELETE",
+            headers: requestHeaders1
+          }, async (err, response, success) => {
+            if (err) {
+              await teleStockMsg("logout data featch failed");
+              await logUser("logout data featch failed");
+              return nextCall({
+                "message": "something went wrong",
+                "data": null
+              });
+            } else {
+              let finalData = JSON.parse(success);
+              if (finalData.status && finalData.status == "error") {
+                finalData.client_secret = appData[0].client_secret;
+                finalData.status1 = "logout";
+                await updateLoginUser(finalData)
+                await teleStockMsg("logout data featch failed")
+                await logUser("logout data featch failed")
+                return nextCall({
+                  "message": "something went wrong",
+                  "data": finalData
+                });
+              } else {
+                await logUser("logout candle data featch successfully")
+                nextCall(null, finalData);
+              }
+            }
+          })
+        }
+      })
+    },
+  ], function (err, response) {
+    if (err) {
+      return res.send({
+        status_api: err.code ? err.code : 400,
+        message: (err && err.message) || "someyhing went wrong",
+        data: err.data ? err.data : null
+      });
+    }
+    return res.send({
+      status_api: 200,
+      message: "logout get successfully",
       data: response
     });
   });
